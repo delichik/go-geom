@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	geom "github.com/twpayne/go-geom"
 )
@@ -111,10 +112,59 @@ func guessLayout3(coords3 [][][]geom.Coord) (geom.Layout, error) {
 	return guessLayout2(coords3[0])
 }
 
+func translate0(coords geom.Coord) geom.Coord {
+	if len(coords) == 3 {
+		return coords[:2]
+	}
+	return coords
+}
+
+func translate1(coords []geom.Coord) []geom.Coord {
+	for i, coord := range coords {
+		if len(coord) == 3 {
+			coords[i] = coord[:2]
+		}
+	}
+	return coords
+}
+
+func translate2(coords [][]geom.Coord) [][]geom.Coord {
+	for i, innerCoords := range coords {
+		for j, coord := range innerCoords {
+			if len(coord) == 3 {
+				innerCoords[j] = coord[:2]
+			}
+		}
+		coords[i] = innerCoords
+	}
+	return coords
+}
+
+func translate3(coords [][][]geom.Coord) [][][]geom.Coord {
+	for i, innerCoords := range coords {
+		for j, innerInnerCoords := range innerCoords {
+			for k, coord := range innerInnerCoords {
+				if len(coord) == 3 {
+					innerInnerCoords[k] = coord[:2]
+				}
+			}
+			innerCoords[j] = innerInnerCoords
+		}
+		coords[i] = innerCoords
+	}
+	return coords
+}
+
 // Decode decodes g to a geometry.
 func (g *Geometry) Decode() (geom.T, error) {
 	if g == nil {
 		return nil, nil
+	}
+
+	in3D := false
+	if strings.HasPrefix(g.Type, "3D") {
+		g.Type = g.Type[2:]
+		in3D = true
 	}
 	switch g.Type {
 	case "Point":
@@ -127,6 +177,9 @@ func (g *Geometry) Decode() (geom.T, error) {
 		}
 		if len(coords) == 0 {
 			return geom.NewPointEmpty(DefaultLayout), nil
+		}
+		if in3D {
+			coords = translate0(coords)
 		}
 		layout, err := guessLayout0(coords)
 		if err != nil {
@@ -141,6 +194,9 @@ func (g *Geometry) Decode() (geom.T, error) {
 		if err := json.Unmarshal(*g.Coordinates, &coords); err != nil {
 			return nil, err
 		}
+		if in3D {
+			coords = translate1(coords)
+		}
 		layout, err := guessLayout1(coords)
 		if err != nil {
 			return nil, err
@@ -153,6 +209,9 @@ func (g *Geometry) Decode() (geom.T, error) {
 		var coords [][]geom.Coord
 		if err := json.Unmarshal(*g.Coordinates, &coords); err != nil {
 			return nil, err
+		}
+		if in3D {
+			coords = translate2(coords)
 		}
 		layout, err := guessLayout2(coords)
 		if err != nil {
@@ -167,6 +226,9 @@ func (g *Geometry) Decode() (geom.T, error) {
 		if err := json.Unmarshal(*g.Coordinates, &coords); err != nil {
 			return nil, err
 		}
+		if in3D {
+			coords = translate1(coords)
+		}
 		layout, err := guessLayout1(coords)
 		if err != nil {
 			return nil, err
@@ -180,6 +242,9 @@ func (g *Geometry) Decode() (geom.T, error) {
 		if err := json.Unmarshal(*g.Coordinates, &coords); err != nil {
 			return nil, err
 		}
+		if in3D {
+			coords = translate2(coords)
+		}
 		layout, err := guessLayout2(coords)
 		if err != nil {
 			return nil, err
@@ -192,6 +257,9 @@ func (g *Geometry) Decode() (geom.T, error) {
 		var coords [][][]geom.Coord
 		if err := json.Unmarshal(*g.Coordinates, &coords); err != nil {
 			return nil, err
+		}
+		if in3D {
+			coords = translate3(coords)
 		}
 		layout, err := guessLayout3(coords)
 		if err != nil {
